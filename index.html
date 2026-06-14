@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>$ELEFENT // terminal+</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#000000;
+    --ink:#ffae66;
+    --ink-bright:#ffcf9e;
+    --ink-dim:#8a5630;
+    --orange:#ff6a00;
+    --orange-hot:#ff8a1e;
+    --amber:#ffb020;
+    --gold:#ffb24d;
+    --green:#46d07a;
+    --line:#241405;
+    --panel:#0a0603;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:16px;line-height:1.5;overflow-x:hidden;letter-spacing:.01em}
+  a{color:inherit;text-decoration:none}
+
+  /* CRT overlays */
+  .crt-scan{position:fixed;inset:0;z-index:90;pointer-events:none;mix-blend-mode:multiply;
+    background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.18) 3px,rgba(0,0,0,0) 4px)}
+  .crt-vignette{position:fixed;inset:0;z-index:91;pointer-events:none;
+    background:radial-gradient(125% 125% at 50% 45%, rgba(0,0,0,0) 66%, rgba(0,0,0,.5) 100%)}
+  .crt-flicker{position:fixed;inset:0;z-index:92;pointer-events:none;background:rgba(255,140,40,.018);
+    animation:flick 7s steps(2,end) infinite}
+  @keyframes flick{0%,96%,100%{opacity:.5}97%{opacity:.15}98%{opacity:.85}99%{opacity:.3}}
+  @media (prefers-reduced-motion: reduce){.crt-flicker{animation:none}}
+
+  .wrap{max-width:1100px;margin:0 auto;padding:0 28px;position:relative;z-index:5}
+
+  /* top bar */
+  .topbar{position:sticky;top:0;z-index:40;background:#000;border-bottom:1px solid var(--line);
+    font-size:12.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-dim)}
+  .topbar .wrap{display:flex;align-items:center;gap:18px;height:42px}
+  .topbar .spacer{flex:1}
+  .topbar a{color:var(--ink-dim);transition:color .15s}
+  .topbar a:hover{color:var(--orange-hot)}
+  @media(max-width:680px){.topbar a.opt{display:none}}
+
+  .blink{animation:bk 1.05s steps(1) infinite}
+  @keyframes bk{50%{opacity:0}}
+
+  /* boot */
+  #boot{position:fixed;inset:0;z-index:120;background:#000;padding:6vh 7vw;font-size:14px;color:var(--ink);
+    white-space:pre-wrap;overflow:hidden}
+  #boot .ok{color:var(--orange-hot)}
+  #boot.hide{opacity:0;pointer-events:none;transition:opacity .5s ease .1s}
+  #bootskip{position:fixed;left:0;right:0;bottom:30px;z-index:121;text-align:center;
+    font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)}
+  #bootskip.hide{opacity:0;pointer-events:none;transition:opacity .4s}
+  @media (prefers-reduced-motion: reduce){#bootskip{display:none}}
+
+  /* ---- HERO ---- */
+  .hero2{position:relative;min-height:calc(100vh - 42px);display:grid;grid-template-columns:1.04fr .96fr;
+    gap:50px;align-items:center;max-width:1100px;margin:0 auto;padding:56px 28px 64px}
+  @media(max-width:880px){.hero2{grid-template-columns:1fr;gap:40px;min-height:0;padding:44px 28px 56px}}
+  .cam{position:relative;border:1px solid var(--line);background:#060402;border-radius:16px;padding:14px;
+    box-shadow:0 0 60px rgba(255,106,0,.10), inset 0 0 60px rgba(255,120,0,.05)}
+  .cam .scr{position:relative;aspect-ratio:1/1;border-radius:11px;overflow:hidden;
+    background:radial-gradient(120% 120% at 50% 35%, #1a1206 0%, #000 72%);display:flex;align-items:center;justify-content:center}
+  .cam .scr img{width:90%;height:90%;object-fit:contain;filter:saturate(1.05);animation:bob 6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  @media(prefers-reduced-motion:reduce){.cam .scr img{animation:none}}
+  .cam .scr::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.22) 3px)}
+  .cam .reticle{position:absolute;inset:12px;z-index:2;pointer-events:none}
+  .cam .reticle span{position:absolute;width:22px;height:22px;border:2px solid var(--orange);opacity:.85}
+  .cam .reticle .tl{top:0;left:0;border-right:0;border-bottom:0}
+  .cam .reticle .tr{top:0;right:0;border-left:0;border-bottom:0}
+  .cam .reticle .bl{bottom:0;left:0;border-right:0;border-top:0}
+  .cam .reticle .br{bottom:0;right:0;border-left:0;border-top:0}
+  .cam .bar{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:0 4px;
+    font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim)}
+  .cam .rec{display:flex;align-items:center;gap:7px;color:var(--orange)}
+  .cam .rec i{width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 10px var(--orange);animation:bk 1.2s steps(1) infinite}
+  .cam .tele{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin-top:12px;background:var(--line);
+    border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .cam .tele>div{background:#000;padding:11px 14px}
+  .cam .tele .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .cam .tele .v{font-size:14px;color:var(--orange);font-weight:700;margin-top:3px}
+
+  /* CTA pitch */
+  .btn{display:inline-flex;align-items:center;gap:10px;font-family:inherit;font-size:15px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.08em;padding:15px 26px;border:1px solid var(--orange);
+    color:#000;background:var(--orange);cursor:pointer;transition:transform .12s ease, box-shadow .2s ease, background .2s}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(255,106,0,.4);background:var(--orange-hot)}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+  .btn.ghost:hover{color:var(--orange-hot);border-color:var(--orange);box-shadow:none;background:rgba(255,106,0,.05)}
+  .cta-row{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px;align-items:center}
+
+  .kick{font-size:12.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--orange);margin-bottom:22px}
+  .kick::before{content:"// "; color:var(--ink-dim)}
+  h1.title{font-weight:800;line-height:.92;letter-spacing:-.02em;font-size:clamp(42px,7.5vw,92px);color:#fff;
+    text-shadow:0 0 24px rgba(255,106,0,.28)}
+  h1.title em{font-style:normal;color:var(--orange)}
+  .sub{margin-top:24px;font-size:clamp(15px,1.7vw,19px);color:var(--ink);max-width:46ch;line-height:1.55}
+  .sub b{color:#fff}
+
+  /* sections */
+  section.block{padding:78px 0;border-bottom:1px solid var(--line);scroll-margin-top:58px}
+  .seclabel{font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--orange);margin-bottom:20px}
+  .seclabel::before{content:"[ "}.seclabel::after{content:" ]"}
+  h2{font-size:clamp(30px,4.5vw,54px);font-weight:800;color:#fff;line-height:1;letter-spacing:-.015em}
+  .lead{margin-top:22px;font-size:17px;max-width:60ch;color:var(--ink);line-height:1.6}
+  .lead b{color:var(--ink-bright);font-weight:700}
+
+  .quote{font-size:clamp(26px,4vw,46px);line-height:1.18;color:#fff;font-weight:700;letter-spacing:-.01em;max-width:18ch}
+  .quote em{color:var(--orange);font-style:normal}
+  .quote .small{display:block;font-size:15px;font-weight:400;color:var(--ink-dim);letter-spacing:.04em;margin-top:26px;max-width:50ch;text-transform:none}
+
+  /* ---- TRENCHES FEED ---- */
+  .chatwrap{display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center;margin-top:8px}
+  @media(max-width:840px){.chatwrap{grid-template-columns:1fr}}
+  .chat{border:1px solid var(--line);background:var(--panel);height:360px;display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:inset 0 0 50px rgba(255,120,0,.04)}
+  .chat .head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);
+    font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+  .chat .head .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  .chat .head b{color:#fff}
+  .feed{flex:1;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px;justify-content:flex-end}
+  .msg{font-size:13.5px;line-height:1.4;animation:rise .4s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .msg .u{color:var(--orange-hot);font-weight:700}
+  .msg.eorange .u{color:var(--gold)}
+  .msg .tx{color:var(--ink)}
+  .msg.eorange .tx{color:#fff}
+  .typing{font-size:12px;color:var(--ink-dim);padding:0 16px 12px}
+  .typing b{color:var(--gold)}
+  .chatside h2{margin-bottom:18px}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:36px}
+  @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:#000;padding:26px 22px}
+  .stat .v{font-size:clamp(26px,3.4vw,38px);color:var(--orange);font-weight:800;line-height:1}
+  .stat .k{font-size:12px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.14em;margin-top:10px}
+  /* spec variant: phrase values, not numbers */
+  .stats.spec .stat{padding:24px 22px;display:flex;flex-direction:column;gap:10px}
+  .stats.spec .stat .v{font-size:clamp(15px,1.7vw,19px);font-weight:700;letter-spacing:.03em;line-height:1.15}
+  .stats.spec .stat .k{margin-top:0;color:var(--ink-dim)}
+
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:36px}
+  @media(max-width:760px){.steps{grid-template-columns:1fr}}
+  .step{border:1px solid var(--line);background:var(--panel);padding:24px}
+  .step .n{font-size:13px;color:var(--orange);letter-spacing:.2em}
+  .step h3{font-size:19px;color:#fff;margin:14px 0 8px;font-weight:700}
+  .step p{font-size:14px;color:var(--ink);line-height:1.55}
+  .step p a{color:var(--orange-hot);border-bottom:1px solid var(--ink-dim)}
+
+  .ca{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:30px;border:1px solid var(--line);padding:16px 20px;background:var(--panel)}
+  .ca .lab{font-size:12px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.16em}
+  .ca .val{color:var(--gold);font-size:14px;word-break:break-all;flex:1;min-width:200px}
+  .ca button{font-family:inherit;font-size:12px;text-transform:uppercase;letter-spacing:.1em;padding:9px 16px;
+    background:transparent;border:1px solid var(--orange);color:var(--orange);cursor:pointer}
+  .ca button:hover{background:var(--orange);color:#000}
+
+  /* roadmap log */
+  .log{border:1px solid var(--line);background:var(--panel);font-size:14.5px;margin-top:34px}
+  .logrow{display:grid;grid-template-columns:160px 1fr auto;gap:16px;padding:16px 22px;border-bottom:1px solid var(--line);align-items:baseline}
+  .logrow:last-child{border-bottom:0}
+  .logrow .t{color:var(--ink-dim);font-size:12.5px;letter-spacing:.08em}
+  .logrow .m{color:#fff}.logrow .m b{color:var(--orange)}
+  .logrow .st{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--orange)}
+  .logrow .st.done{color:var(--ink-dim)}.logrow .st.done::before{content:"✓ "}
+
+  footer{padding:70px 0 90px;text-align:center}
+  footer .big{font-size:clamp(40px,9vw,120px);font-weight:800;color:#1c1108;line-height:.9;letter-spacing:-.02em;
+    text-shadow:0 0 1px var(--line);user-select:none}
+  footer .links{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-top:30px;font-size:13px;
+    text-transform:uppercase;letter-spacing:.14em;color:var(--ink-dim)}
+  footer .links a:hover{color:var(--orange-hot)}
+  footer .fine{margin-top:30px;font-size:12px;color:var(--ink-dim);letter-spacing:.06em;max-width:54ch;margin-inline:auto;line-height:1.6}
+
+  /* focus states */
+  a:focus-visible,.btn:focus-visible,button:focus-visible{outline:2px solid var(--orange-hot);outline-offset:3px}
+  .btn:focus-visible{outline-offset:4px}
+
+  .reveal{transition:opacity .7s ease, transform .7s ease}
+  .js .reveal{opacity:0;transform:translateY(18px)}
+  .reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body style="font-family: &quot;JetBrains Mono&quot;; font-size: 16px">
+<div class="crt-scan"></div>
+<div class="crt-vignette"></div>
+<div class="crt-flicker"></div>
+
+<div id="boot"></div>
+<div id="bootskip">[ press any key or click to skip ]</div>
+
+<div class="topbar">
+  <div class="wrap">
+    <span class="blink" style="color:var(--orange)">●</span>
+    <span>elefent.xyz</span>
+    <span class="spacer"></span>
+    <a class="opt" href="#feed">#trenches</a>
+    <a class="opt" href="#room">manifesto</a>
+    <a href="#buy">acquire</a>
+    <a class="opt" href="#map">roadmap</a>
+    <a href="https://discord.gg/baseline" target="_blank" rel="noopener">discord</a>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero2">
+  <div class="hcopy">
+    <div class="kick">ticker: $ELEFENT &nbsp;·&nbsp; chain: ethereum &nbsp;·&nbsp; bfactory: genesis_001</div>
+    <h1 class="title">THE <em>ELEFENT</em><br>IN THE ROOM</h1>
+    <p class="sub">Everyone sees it. Nobody mentions it. <b>How long can they keep ignoring the elefent in the room?</b></p>
+    <div class="cta-row">
+      <a class="btn" href="https://app.baseline.markets/tokens/1/0x3395f52f4D6d3D6472cEC2B24E8aF64105a64D75?tab=buy&view=trade" target="_blank" rel="noopener">BUY $ELEFENT ▸</a>
+      <a class="btn ghost" href="https://discord.gg/baseline" target="_blank" rel="noopener">JOIN DISCORD</a>
+    </div>
+  </div>
+  <div class="cam">
+    <div class="scr">
+      <img src="assets/elefent.jpg" alt="elefent on the elefent-cam" width="760" height="760" fetchpriority="high" decoding="async" />
+      <div class="reticle"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span></div>
+    </div>
+    <div class="bar"><span class="rec"><i></i> rec · elefent-cam</span><span>ch-01 · live</span></div>
+    <div class="tele">
+      <div><div class="k">floor</div><div class="v">UP ONLY*</div></div>
+      <div><div class="k">bfactory</div><div class="v">FIRST DEPLOYMENT</div></div>
+      <div><div class="k">visibility</div><div class="v">OBVIOUS</div></div>
+      <div><div class="k">status</div><div class="v">IGNORED</div></div>
+    </div>
+  </div>
+</section>
+
+
+
+<div class="wrap">
+  <!-- MANIFESTO -->
+  <section class="block" id="room">
+    <div class="seclabel">manifesto</div>
+    <p class="quote">It has been standing here <em>the whole time.</em>
+      <span class="small">Grey. Enormous. Impossible to miss. They walk around it, they talk over it, they pretend the floor isn't there. The elefent doesn't argue. The elefent doesn't forget. The elefent just gets heavier.</span></p>
+  </section>
+
+  <!-- TRENCHES FEED -->
+  <section class="block" id="feed">
+    <div class="seclabel">live · #trenches</div>
+    <div class="chatwrap">
+      <div class="chat">
+        <div class="head"><span class="dot"></span><b>#trenches</b> · 4,201 online · nobody mentions it</div>
+        <div class="feed" id="feedbox"></div>
+        <div class="typing" id="typing">&nbsp;</div>
+      </div>
+      <div class="chatside">
+        <h2>Everybody's typing.<br>Nobody says <em style="color:var(--orange);font-style:normal">its name.</em></h2>
+        <p class="lead">They post the charts. They post the cope. They post about the <b>next thing.</b> Meanwhile a several-ton animal stands in the middle of the room, calmly refusing to be exit liquidity. <b>How long can they keep ignoring it?</b></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY -->
+  <section class="block">
+    <div class="seclabel">why it won't sink</div>
+    <h2>ELEFENT is less dense<br>than liquid mercury.</h2>
+    <p class="lead"><b>$ELEFENT</b> owns its liquidity on <b>mercury curve</b>. Baseline's market maker manages it automatically: <b>backing reserves</b> support every circulating token at <b>BLV</b>, while <b>buffer reserves</b> enable price discovery above the floor. The market maker <b>never quotes below BLV</b>, and <b>trading fees</b> strengthen the system over time.</p>
+    <p class="lead" style="margin-top:1em">Every trade routes fees back into the token's economy: <b>reinforcing the floor</b> and dripping a <b>portion to stakers</b>, distributed by share of total stake.</p>
+    <div class="stats spec">
+      <div class="stat"><div class="v">TOKEN-OWNED</div><div class="k">liquidity, built in</div></div>
+      <div class="stat"><div class="v">BLV FLOOR</div><div class="k">mathematically unbreakable</div></div>
+      <div class="stat"><div class="v">FEES → FLOOR</div><div class="k">trading strengthens BLV</div></div>
+      <div class="stat"><div class="v">STAKE → EARN</div><div class="k">share of trading fees</div></div>
+    </div>
+  </section>
+
+  <!-- BUY -->
+  <section class="block" id="buy">
+    <div class="seclabel">how to acknowledge it</div>
+    <h2>Three steps. No excuses.</h2>
+    <div class="steps">
+      <div class="step"><div class="n">01 //</div><h3>Get a wallet + ETH</h3><p>MetaMask, Rabby, whatever. Add some ETH on Ethereum mainnet. That's all you need.</p></div>
+      <div class="step"><div class="n">02 //</div><h3>Enter the room</h3><p>Hit <a href="https://app.baseline.markets/tokens/1/0x3395f52f4D6d3D6472cEC2B24E8aF64105a64D75?tab=buy&view=trade" target="_blank" rel="noopener">the trade terminal</a>, connect, and look it dead in the eye.</p></div>
+      <div class="step"><div class="n">03 //</div><h3>Stop pretending</h3><p>Swap ETH → $ELEFENT. Congratulations, you're the only one in the room being honest. <span class="blink" style="color:var(--orange)">_</span></p></div>
+    </div>
+    <div class="ca">
+      <span class="lab">contract</span>
+      <span class="val" id="ca">0x3395f52f4D6d3D6472cEC2B24E8aF64105a64D75</span>
+      <button id="copy">copy</button>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section class="block" id="map">
+    <div class="seclabel">syslog · roadmap</div>
+    <h2>The stampede, scheduled.</h2>
+    <div class="log">
+      <div class="logrow"><span class="t">PHASE_00</span><span class="m">stomp around and find out</span><span class="st">live</span></div>
+      <div class="logrow"><span class="t">PHASE_01</span><span class="m">TBD</span><span class="st" style="color:var(--ink-dim)">pending</span></div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+
+    <div class="cta-row" style="justify-content:center">
+      <a class="btn" href="https://app.baseline.markets/tokens/1/0x3395f52f4D6d3D6472cEC2B24E8aF64105a64D75?tab=buy&view=trade" target="_blank" rel="noopener">BUY $ELEFENT ▸</a>
+      <a class="btn ghost" href="https://discord.gg/baseline" target="_blank" rel="noopener">DISCORD</a>
+    </div>
+    <div class="links">
+      <a href="https://discord.gg/baseline" target="_blank" rel="noopener">discord</a>
+      <a href="https://app.baseline.markets/tokens/1/0x3395f52f4D6d3D6472cEC2B24E8aF64105a64D75?tab=buy&view=trade" target="_blank" rel="noopener">trade</a>
+      <a href="https://www.baseline.markets/docs/how-it-works/overview" target="_blank" rel="noopener">bmm docs</a>
+    </div>
+    <div class="fine">*UP ONLY refers to the protocol floor, not a promise of price. $ELEFENT is a memecoin with no intrinsic value or expectation of financial return. Do your own research.</div>
+  </div>
+</footer>
+
+<script>
+  // ---- boot ----
+  document.documentElement.classList.add('js');
+  const bootEl=document.getElementById('boot');
+  const bootSkip=document.getElementById('bootskip');
+  function endBoot(){bootEl.classList.add('hide');if(bootSkip)bootSkip.classList.add('hide');
+    sessionStorage.setItem('elefent_booted','1');document.removeEventListener('keydown',endBoot);}
+  const lines=[
+    "ELEFENT BIOS v3.95  (c) the herd","",
+    "POST .................. <span class='ok'>OK</span>",
+    "memory check ......... 1,000,000,000,000 $ELEFENT",
+    "loading liquidity .... <span class='ok'>OWNED</span>",
+    "price floor .......... <span class='ok'>INSTALLED</span>",
+    "rug module ........... <span class='ok'>NOT FOUND</span>",
+    "scanning room ........ ",
+    "  > detected: 1 (one) very large elefent",
+    "  > status: being ignored","",
+    "boot complete. acknowledging in 3..2..1",
+  ];
+  let li=0,ci=0,out="";
+  function type(){
+    if(li>=lines.length){setTimeout(endBoot,420);return;}
+    const cur=lines[li];
+    if(cur.includes('<span')){out+=cur+"\n";li++;ci=0;bootEl.innerHTML=out+"<span class='ok'>█</span>";setTimeout(type,120);return;}
+    if(ci<cur.length){out+=cur[ci];ci++;bootEl.innerHTML=out+"<span class='ok'>█</span>";setTimeout(type,cur.length>30?8:24);}
+    else{out+="\n";li++;ci=0;setTimeout(type,70);}
+  }
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce||sessionStorage.getItem('elefent_booted')){endBoot();}
+  else{setTimeout(type,300);document.addEventListener('keydown',endBoot);bootEl.addEventListener('click',endBoot);if(bootSkip)bootSkip.addEventListener('click',endBoot);}
+
+  // ---- trenches feed ----
+  const feedbox=document.getElementById('feedbox'),typingEl=document.getElementById('typing');
+  const rand=a=>a[Math.floor(Math.random()*a.length)];
+  const anons=["0xcabbage","liq.eth","ngmi_andy","ser_____","gm_ghost","exitliquidity","midcurver","frend.base","anon4202","wagmi_juan",
+    "tuskfan99","probably.nothing","jpeg_janitor","0xrekt","floor_gazer","trenchfoot","cope_dealer","ribbit.eth","degenmum","based_dept",
+    "liquidated_again","herd_member_44","two_tusks","exit_pls","nocoiner_no_more","sirloin.eth","gm_chad","saylor_lite","miss_watanabe","anon0x7"];
+  const noise=[
+    "anyone watching the new L2 narrative","i'm so cooked this week lol","is it just me or is everything bleeding",
+    "wen alt season fr fr","bought the top again, classic me","this chart is giving... nothing",
+    "gm to everyone except my cost basis","what's the play today anons","rotating into majors, too tired",
+    "the funding rates are insane rn","someone tell me what to buy","i refuse to look at my portfolio",
+    "nothing ever happens","down bad but vibes are immaculate","anyone else just... not looking at the corner of the room",
+    "why is it so quiet in here suddenly","i feel like we're forgetting something","do you guys hear footsteps",
+    "so early","bm cooks","ready to capture the market when the tides finally turn","baseline ahead of the curve",
+    "what happens now though","tell us something","what did i miss?","im gona be rich after wc",
+    "fuck crypto","hold on","gm dumpers","fml","need to find a job now","i got liquidated tonight",
+    "10 bucks volume","soon soon soon","damn it's hard to educate this team","no surprise ppl hate you",
+  ];
+  const elefentLines=[
+    "i am right here.","the floor is load-bearing. so am i.","you'll mention me eventually.",
+    "you can keep scrolling. i'll wait.","i don't forget an entry.","still here. still ignored.",
+    "*stands in the middle of the room*",
+  ];
+  function addMsg(u,tx,cls){
+    const d=document.createElement('div');d.className='msg'+(cls?' '+cls:'');
+    const su=document.createElement('span');su.className='u';su.textContent=u;
+    const st=document.createElement('span');st.className='tx';st.textContent=' '+tx;
+    d.appendChild(su);d.appendChild(st);
+    feedbox.appendChild(d);while(feedbox.children.length>11)feedbox.removeChild(feedbox.firstChild);
+  }
+  addMsg(rand(anons),"so early. nobody's even looking");
+  addMsg(rand(anons),"the funding rates are insane rn");
+  addMsg(rand(anons),"do you guys hear footsteps");
+  addMsg(rand(anons),"i'm so cooked this week lol");
+  addMsg(rand(anons),"is it just me or is everything bleeding");
+  addMsg(rand(anons),"why is it so quiet in here suddenly");
+  addMsg("ELEFENT","i am right here.","eorange");
+  addMsg(rand(anons),"someone tell me what to buy");
+  addMsg(rand(anons),"i refuse to look at my portfolio");
+  addMsg(rand(anons),"down bad but vibes are immaculate");
+  addMsg(rand(anons),"anon did you move it. who moved it");
+  let beat=0,lastTx="i am right here.";
+  function pick(){
+    beat++;
+    let m;
+    if(beat%7===0){m={u:"ELEFENT",tx:rand(elefentLines),cls:"eorange"};}
+    else{m={u:rand(anons),tx:rand(noise),cls:""};}
+    let guard=0;
+    while(m.tx===lastTx && guard++<6){m.tx=(m.cls==="eorange"?rand(elefentLines):rand(noise));}
+    lastTx=m.tx;
+    return m;
+  }
+  function nextMsg(){
+    const m=pick();
+    typingEl.textContent=m.u+" is typing…";
+    setTimeout(()=>{
+      typingEl.innerHTML='&nbsp;';
+      addMsg(m.u,m.tx,m.cls);
+      setTimeout(nextMsg,1300+Math.random()*1700);
+    },850+Math.random()*750);
+  }
+  setTimeout(nextMsg,1200);
+
+  // ---- copy ----
+  document.getElementById('copy').addEventListener('click',function(){
+    navigator.clipboard?.writeText(document.getElementById('ca').textContent.trim());
+    this.textContent='copied ✓';setTimeout(()=>this.textContent='copy',1400);
+  });
+
+  // ---- reveal ----
+  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')}),{threshold:.12});
+  document.querySelectorAll('.block').forEach(b=>{b.classList.add('reveal');io.observe(b)});
+</script>
+</body>
+</html>
